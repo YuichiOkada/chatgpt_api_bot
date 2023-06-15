@@ -1,46 +1,61 @@
 
 import streamlit as st
-import openai
+import pickle
+import os
+from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import PyPDFLoader
+from langchain.vectorstores import Chroma
+from chromadb.config import Settings
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.chains import ConversationalRetrievalChain
 
-# Streamlit Community Cloudの「Secrets」からOpenAI API keyを取得
-openai.api_key = st.secrets.OpenAIAPI.openai_api_key
+# 本番環境の場合はStreamlit Community Cloudの「Secrets」からOpenAI API keyを取得
+if st.secrets.env.env == 'prod':
+    os.environ["OPENAI_API_KEY"] = st.secrets.OpenAIAPI.openai_api_key
+else:
+    os.environ["OPENAI_API_KEY"] = openai_api_key_dev
+
+# embeddingとllmの初期設定
+embeddings = OpenAIEmbeddings(model = "text-embedding-ada-002")
+llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo-16k")
+
+# pdfの処理を行う
+loader = PyPDFLoader("https://www.mhlw.go.jp/content/001018385.pdf")
+pages = loader.load_and_split()
+
+# embeddingしてchroma-dbに登録する
+db = Chroma.from_documents(pages, OpenAIEmbeddings(), persist_directory = "db")
+db.persist()
+# QAの設定
+pdf_qa = ConversationalRetrievalChain.from_llm(llm, db.as_retriever(), return_source_documents=True)
 
 # st.session_stateを使いメッセージのやりとりを保存
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        {"role": "system", "content": "あなたは優秀なアシスタントAIです。"}
-        ]
+    st.session_state["messages"] = []
 
 # チャットボットとやりとりする関数
 def communicate():
-    messages = st.session_state["messages"]
-
-    user_message = {"role": "user", "content": st.session_state["user_input"]}
-    messages.append(user_message)
-
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=messages
-    )  
-
-    bot_message = response["choices"][0]["message"]
-    messages.append(bot_message)
-
-    st.session_state["user_input"] = ""  # 入力欄を消去
+    result = pdf_qa({"question": st.session_state["user_input"], "chat_history": chat_history})
+    messages.append(result)
+    # 入力欄を消去
+    st.session_state["user_input"] = ""  
 
 
 # ユーザーインターフェイスの構築
 st.title("My AI Assistant")
 st.write("ChatGPT APIを使ったチャットボットです。")
 
-user_input = st.text_input("メッセージを入力してください。", key="user_input", on_change=communicate)
+user_input = st.text_input("総務・人事担当に聞きたい事を入力してください。", key="user_input", on_change=communicate)
 
 if st.session_state["messages"]:
     messages = st.session_state["messages"]
 
-    for message in reversed(messages[1:]):  # 直近のメッセージを上に
+    for message in reversed(messages):  # 直近のメッセージを上に
         speaker = "🙂"
+        content = message["question"]
         if message["role"]=="assistant":
-            speaker="🤖"
+            speaker = "🤖"
+            content = message["answer"]
 
-        st.write(speaker + ": " + message["content"])
+        st.write(speaker + ": " + content)
