@@ -36,7 +36,9 @@ if "messages" not in st.session_state:
 
 # チャットボットとやりとりする関数
 def communicate():
+    messages = st.session_state["messages"]
     chat_history = []
+    
     result = pdf_qa({"question": st.session_state["user_input"], "chat_history": chat_history})
     messages.append({"answer": result["answer"], "question": result["question"]})
     # 入力欄を消去
