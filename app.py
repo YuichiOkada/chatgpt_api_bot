@@ -47,9 +47,9 @@ def communicate():
 
 # ユーザーインターフェイスの構築
 st.title("My AI Assistant")
-st.write("ChatGPT APIを使ったチャットボットです。")
+st.write("ChatGPT APIを使ったチャットボットです。総務・人事担当に聞きたい事を入力してください。")
 
-user_input = st.text_input("総務・人事担当に聞きたい事を入力してください。", key="user_input", on_change=communicate)
+user_input = st.text_input("厚生労働省のモデル就業規則（PDF）を元に回答します。<a href='https://www.mhlw.go.jp/file/06-Seisakujouhou-11200000-Roudoukijunkyoku/0000118951.pdf'>参照元</a>", key="user_input", on_change=communicate)
 
 if st.session_state["messages"]:
     messages = st.session_state["messages"]
