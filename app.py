@@ -55,5 +55,5 @@ if st.session_state["messages"]:
     messages = st.session_state["messages"]
 
     for message in reversed(messages):  # 直近のメッセージを上に
-        st.write("🙂" + ": " + message["question"])
         st.write("🤖" + ": " + message["answer"])
+        st.write("🙂" + ": " + message["question"]
